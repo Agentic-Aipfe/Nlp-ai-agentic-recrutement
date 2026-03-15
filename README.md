@@ -1,6 +1,6 @@
 # NLP Agentic – Agent 1 CV Parser
 
-Ce projet correspond actuellement à la **première partie** d’un système multi-agents pour le recrutement, plus précisément :
+Cette partie correspond actuellement à la **première partie** d’un système multi-agents pour le recrutement, plus précisément :
 
 ## Agent 1 – Analyse et structuration des CV
 À ce stade, seule la **première étape** est implémentée :
