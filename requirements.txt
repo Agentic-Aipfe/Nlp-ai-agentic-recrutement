@@ -1,0 +1,6 @@
+pymupdf
+llama-parse
+python-dotenv
+pytesseract
+pdf2image
+pdfplumber
