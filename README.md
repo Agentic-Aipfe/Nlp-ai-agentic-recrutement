@@ -297,4 +297,4 @@ Projet réalisé dans le cadre d’un PFE sur le recrutement intelligent basé s
 
 Ce dépôt est en cours de développement.
 Pour l’instant, il représente surtout la **première brique fonctionnelle** :
-l’extraction robuste du texte des CV PDF.
+L’extraction robuste du texte des CV PDF.
