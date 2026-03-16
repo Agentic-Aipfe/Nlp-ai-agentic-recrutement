@@ -13,8 +13,8 @@ def extract_text_from_pdf(pdf_file_path: str) -> dict:
     3-Extraction du contenu textuel natif de chaque page
     4-Concaténation en corpus textuel unique
 
-    Returns structured data so the agent can decide
-    how to handle image-based pages.
+    Renvoie des données structurées afin que l'agent puisse déterminer
+    le traitement approprié pour les pages de type image..
     """
     file_path = Path(pdf_file_path)
     if not file_path.exists():
