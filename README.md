@@ -16,15 +16,20 @@ Cette partie correspond actuellement à la **première partie** d’un système 
 Avant de commencer, assurez-vous d’avoir installé :
 
 - **Python 3.10+** recommandé
-- **pip**
-- **git**
-- (optionnel) **VS Code**
+- **pip** et **git**
+- **Tesseract-OCR** (Requis pour l'OCR des CV scannés via `pytesseract`)
+  - *Windows* : Téléchargez l'installateur depuis le dépôt GitHub et ajoutez-le au PATH.
+  - *Linux* : `sudo apt install tesseract-ocr tesseract-ocr-fra`
+  - *macOS* : `brew install tesseract tesseract-lang`
+- **Poppler** (Requis pour convertir les PDF en images via `pdf2image`)
+  - *Windows* : Téléchargez les binaires Poppler, extrayez-les et ajoutez le dossier `bin` au PATH.
+  - *Linux* : `sudo apt install poppler-utils`
+  - *macOS* : `brew install poppler`
 
-Vérifier les versions :
+Vérifier les versions (Python et Git) :
 
 ```bash
 python --version
-pip --version
 git --version
 ```
 
@@ -98,13 +103,16 @@ NLP_AGENTIC/
 ├── agent_1_cv_parser/
 │   ├── models/
 │   │   └── schemas.py
+│   ├── resumes/
+│   │   └── badr.pdf
 │   ├── tests/
 │   │   ├── test_llamaparse.py
-│   │   ├── test_pymupdf.py
+│   │   ├── test_mypupdf.py
 │   │   └── test_pdfplumber.py
 │   ├── tools/
 │   │   └── extractor.py
 │   ├── .env
+│   ├── .gitignore
 │   └── test.py
 ├── venv/
 ├── README.md
@@ -141,17 +149,26 @@ agent_1_cv_parser/tools/extractor.py
 
 Son rôle est de :
 - charger un fichier PDF
-- extraire le texte page par page
-- concaténer le contenu
-- signaler éventuellement les pages très pauvres en texte
+- extraire le texte natif page par page via `pdfplumber`
+- identifier si le PDF contient principalement des images (CV scannés)
+- relancer une extraction complète avec OCR (`pytesseract`) en cas de fichier scanné
+- concaténer et retourner le contenu structuré
 
 ---
 
 ## Exemple d’utilisation simple
 
-Selon l’implémentation de `extractor.py`, vous pouvez tester avec un script Python.
+Le script fonctionne comme un module ou peut être exécuté directement en invite de commande :
 
-### Exemple
+### Exécution directe en terminal
+
+Si vous ne passez pas d'argument, le script vous demandera le chemin :
+```bash
+python agent_1_cv_parser/tools/extractor.py "chemin/vers/votre_cv.pdf"
+```
+Il affichera les informations et **sauvegardera le texte extrait dans un fichier `*_raw.txt`**.
+
+### Via un script Python
 
 ```python
 from agent_1_cv_parser.tools.extractor import extract_text_from_pdf
@@ -159,21 +176,14 @@ from agent_1_cv_parser.tools.extractor import extract_text_from_pdf
 pdf_path = "chemin/vers/votre_cv.pdf"
 result = extract_text_from_pdf(pdf_path)
 
-print("Nombre de pages :", result["num_pages"])
-print("Pages image :", result["image_pages"])
+print(f"Fichier    : {result['file_name']}")
+print(f"Pages      : {result['num_pages']}")
+print(f"Pages image: {result['image_pages']}")
+print(f"Scanné     : {result['is_scannable']}")
+print(f"OCR requis : {result['needs_ocr']}")
 print("Texte extrait :")
-print(result["text"])
+print(result["text"][:100] + "...") # Afficher un extrait
 ```
-
-### Exécution
-
-```bash
-python agent_1_cv_parser/test.py
-```
-
-> Si le nom de la fonction dans `extractor.py` est différent, adaptez simplement :
-> - `extract_text_from_pdf`
-> - ou le nom réel utilisé dans votre code
 
 ---
 
@@ -185,17 +195,16 @@ Après plusieurs tests sur différents CV :
 - CV complexes / multi-colonnes → `pdfplumber` donne de meilleurs résultats
 - certains cas avec `PyMuPDF` :
   - mélange des sections
-  - mots éclatés lettre par lettre
+  - mots éclatés lettre par lettre :(
   - ordre de lecture peu fiable
 
 ### Décision actuelle
-Le projet retient :
+Le système hybride suivant a été mis en place :
 
-```text
-pdfplumber
-```
-
-comme extracteur principal pour l’Agent 1.
+1. **Extraction native**
+   - Utilisation de `pdfplumber` en première intention pour une extraction précise.
+2. **Fallback sur OCR**
+   - Si la majorité des pages ont très peu de texte natif (probablement un scan), le script bascule sur `pdf2image` et `pytesseract` pour récupérer le contenu textuel.
 
 ---
 
@@ -204,7 +213,8 @@ comme extracteur principal pour l’Agent 1.
 ## Déjà fait
 - structure initiale du projet
 - tests comparatifs entre extracteurs
-- implémentation de l’extraction de texte
+- implémentation de l’extraction hybride avec `pdfplumber`
+- bascule dynamique vers l'OCR pour le traitement des CV scannés
 
 ## À venir
 - nettoyage et prétraitement du texte
