@@ -1,9 +1,6 @@
-groq
 pdfplumber
 pymupdf
 pytesseract
 pdf2image
 python-dotenv
-rich
-streamlit
 spacy
