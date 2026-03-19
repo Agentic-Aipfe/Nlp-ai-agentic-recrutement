@@ -1,5 +1,9 @@
+groq
+pdfplumber
 pymupdf
-python-dotenv
 pytesseract
 pdf2image
-pdfplumber
+python-dotenv
+rich
+streamlit
+spacy
