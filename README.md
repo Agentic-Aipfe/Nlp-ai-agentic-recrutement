@@ -7,6 +7,7 @@ Cette partie correspond actuellement à la **première partie** d'un système mu
 À ce stade, seule la **première étape** est implémentée :
 
 - **Extraction du texte depuis des CV PDF**
+- **Validation du type de document via un modèle local (llama3)**
 - Comparaison de plusieurs extracteurs (`pdfplumber`, `PyMuPDF`, `LlamaParse`)
 - Choix de `pdfplumber` comme extracteur principal
 
@@ -18,6 +19,10 @@ Avant de commencer, assurez-vous d'avoir installé :
 
 - **Python 3.10+** recommandé
 - **pip** et **git**
+- **Ollama** (Requis pour la validation du document via llama3)
+  - *Linux* : `curl -fsSL https://ollama.com/install.sh | sh`
+  - *Windows / macOS* : Téléchargez l'installateur depuis https://ollama.com/download
+  - Après installation : `ollama pull llama3`
 - **Tesseract-OCR** (Requis pour l'OCR des CV scannés via `pytesseract`)
   - *Windows* : Téléchargez l'installateur depuis le dépôt GitHub et ajoutez-le au PATH.
   - *Linux* : `sudo apt install tesseract-ocr tesseract-ocr-fra`
@@ -78,22 +83,15 @@ pip install -r requirements.txt
 
 # 5. Configuration du fichier `.env`
 
-Créer un fichier `.env` dans le dossier :
+Pour cette partie, **aucun fichier `.env` n'est nécessaire** — tout fonctionne localement via Ollama, sans clé API.
 
-```text
-agent_1_cv_parser/
-```
-
-### Exemple minimal
+Le fichier `.env` deviendra utile uniquement si vous intégrez un service externe comme **Groq** ou **LlamaParse** dans les étapes suivantes.
 
 ```env
 # Optionnel pour l'instant
 LLAMAPARSE_API_KEY=your_api_key_here
+GROQ_API_KEY=your_api_key_here
 ```
-
-> Remarque :
-> - Pour les tests avec `pdfplumber` et `PyMuPDF`, ce fichier n'est généralement **pas nécessaire**
-> - Il devient utile uniquement si vous utilisez un service externe comme **LlamaParse**
 
 ---
 
@@ -111,7 +109,7 @@ NLP_AGENTIC/
 │   │   ├── test_mypupdf.py
 │   │   └── test_pdfplumber.py
 │   ├── tools/
-│   │   └── extractor.py
+│   │   └── extractor.py        ← extraction + validation
 │   ├── .env
 │   ├── .gitignore
 │   └── test.py
@@ -153,39 +151,45 @@ Son rôle est de :
 - extraire le texte natif page par page via `pdfplumber`
 - identifier si le PDF contient principalement des images (CV scannés)
 - relancer une extraction complète avec OCR (`pytesseract`) en cas de fichier scanné
+- valider le type du document via `llama3` (CV, Facture, Rapport, etc.)
+- rejeter automatiquement tout document qui n'est pas un CV
 - concaténer et retourner le contenu structuré
 
 ---
 
 ## Exemple d'utilisation simple
 
-Le script fonctionne comme un module ou peut être exécuté directement en invite de commande :
-
 ### Exécution directe en terminal
-
-Si vous ne passez pas d'argument, le script vous demandera le chemin :
 
 ```bash
 python agent_1_cv_parser/tools/extractor.py "chemin/vers/votre_cv.pdf"
 ```
 
-Il affichera les informations et **sauvegardera le texte extrait dans un fichier `*_raw.txt`**.
+Il affichera les informations et **sauvegardera le texte extrait dans un fichier `*_raw.txt`** uniquement si le document est bien un CV.
 
 ### Via un script Python
 
 ```python
-from agent_1_cv_parser.tools.extractor import extract_text_from_pdf
+from agent_1_cv_parser.tools.extractor import extract_text, validate_document
 
-pdf_path = "chemin/vers/votre_cv.pdf"
-result = extract_text_from_pdf(pdf_path)
+# étape 1 — extraction
+result = extract_text("chemin/vers/votre_cv.pdf")
 
 print(f"Fichier    : {result['file_name']}")
 print(f"Pages      : {result['num_pages']}")
 print(f"Pages image: {result['image_pages']}")
-print(f"Scanné     : {result['is_scannable']}")
 print(f"OCR requis : {result['needs_ocr']}")
-print("Texte extrait :")
-print(result["text"][:100] + "...")  # Afficher un extrait
+
+# étape 2 — validation
+validation = validate_document(result)
+
+print(f"Est un CV  : {validation['is_cv']}")
+print(f"Type doc   : {validation['document_type']}")
+print(f"Raison     : {validation['reason']}")
+
+# utiliser le texte uniquement si c'est un CV
+if validation["is_cv"]:
+    print(result["text"][:100] + "...")
 ```
 
 ---
@@ -209,44 +213,54 @@ Le système hybride suivant a été mis en place :
    - Utilisation de `pdfplumber` en première intention pour une extraction précise.
 2. **Fallback sur OCR**
    - Si la majorité des pages ont très peu de texte natif (probablement un scan), le script bascule sur `pdf2image` et `pytesseract` pour récupérer le contenu textuel.
+3. **Validation par LLM**
+   - Le texte extrait est envoyé à `llama3` (via Ollama) pour vérifier que le document est bien un CV avant de continuer le pipeline.
 
 ---
 
-# 10. Ma contribution – Extraction de texte des CV PDF
+# 10. Ma contribution – Extraction et Validation des CV PDF
 
-Dans l'Agent 1, ma partie concerne principalement l'**extraction du texte à partir des CV PDF**. L'objectif est de transformer un document brut en texte exploitable pour les étapes suivantes du pipeline.
+Dans l'Agent 1, ma partie concerne principalement l'**extraction du texte à partir des CV PDF** ainsi que la **validation automatique du type de document**. L'objectif est de transformer un document brut en texte exploitable et vérifié pour les étapes suivantes du pipeline.
 
 ## Fonctionnement
 
-Le processus d'extraction suit trois étapes principales :
+Le processus suit trois étapes principales :
 
 **1. Extraction native avec `pdfplumber`**
 
 On commence par extraire le texte natif du PDF page par page via `pdfplumber`, qui offre les meilleurs résultats sur les CV complexes (multi-colonnes, mise en forme avancée).
 
-**2. Détection des documents scannés**
+**2. Détection des documents scannés et fallback OCR**
 
-On évalue la qualité de l'extraction avec une règle simple : si un nombre significatif de pages contient très peu de texte natif, le document est probablement scanné ou peu extractible en mode natif.
+On évalue la qualité de l'extraction avec une règle simple : si un nombre significatif de pages contient très peu de texte natif, le document est probablement scanné. Dans ce cas, on active automatiquement un fallback avec `pdf2image` et `pytesseract` pour récupérer le texte via OCR.
 
-**3. Fallback OCR**
+**3. Validation du type de document via llama3**
 
-Dans ce cas, on active automatiquement un fallback avec `pdf2image` et `pytesseract` : le PDF est converti en images page par page, puis l'OCR permet de récupérer le texte à partir de ces images.
+Les premiers 1500 caractères du texte extrait sont envoyés au modèle local `llama3` (via Ollama) avec un prompt structuré. Le modèle retourne un JSON indiquant si le document est bien un CV, son type, et une explication courte. Tout document qui n'est pas un CV est rejeté avant d'entrer dans le pipeline.
 
 ## Données retournées
 
-En plus du texte extrait, la fonction retourne plusieurs métadonnées utiles pour les étapes suivantes :
+### Par `extract_text()`
 
 | Champ | Description |
 |---|---|
 | `text` | Texte complet extrait |
 | `num_pages` | Nombre total de pages |
+| `file_name` | Nom du fichier PDF |
 | `image_pages` | Liste des pages identifiées comme images |
-| `is_scannable` | Indique si le document semble scanné |
 | `needs_ocr` | Indique si le fallback OCR a été activé |
+
+### Par `validate_document()`
+
+| Champ | Description |
+|---|---|
+| `is_cv` | `true` si le document est un CV, `false` sinon |
+| `document_type` | Type détecté : CV / Facture / Rapport / Médical / Juridique / Autre |
+| `reason` | Explication courte de la décision du modèle |
 
 ## Pourquoi c'est important
 
-Cette étape est critique : **toute la qualité du reste du pipeline dépend directement de la qualité du texte extrait**. Un texte mal extrait — mots découpés, sections mélangées, contenu manquant — impacte négativement toutes les étapes suivantes : nettoyage, extraction d'entités, génération d'embeddings et matching.
+Cette étape est critique : **toute la qualité du reste du pipeline dépend directement de la qualité du texte extrait et de la fiabilité de la validation**. Un texte mal extrait ou un document mal classifié impacte négativement toutes les étapes suivantes : nettoyage, extraction d'entités, génération d'embeddings et matching.
 
 ---
 
@@ -258,6 +272,8 @@ Cette étape est critique : **toute la qualité du reste du pipeline dépend dir
 - Tests comparatifs entre extracteurs
 - Implémentation de l'extraction hybride avec `pdfplumber`
 - Bascule dynamique vers l'OCR pour le traitement des CV scannés
+- Validation automatique du type de document via `llama3` (Ollama, 100% local)
+- Rejet automatique des documents qui ne sont pas des CV
 
 ## À venir
 
@@ -298,6 +314,19 @@ pip uninstall -r requirements.txt -y
 pip install -r requirements.txt
 ```
 
+## Ollama
+
+```bash
+# vérifier que ollama tourne
+ollama list
+
+# lancer ollama si pas encore démarré
+ollama serve
+
+# pull llama3 si pas encore téléchargé
+ollama pull llama3
+```
+
 ---
 
 # 13. Problèmes fréquents
@@ -329,6 +358,16 @@ Tous les PDF ne sont pas égaux :
 
 Pour ce projet, `pdfplumber` est actuellement l'outil le plus fiable parmi ceux testés.
 
+## 5. Ollama ne répond pas
+
+Vérifiez que le service tourne :
+
+```bash
+ollama serve
+```
+
+Si vous obtenez `bind: Only one usage of each socket address` — c'est que Ollama tourne déjà en arrière-plan, pas besoin de le relancer.
+
 ---
 
 # 14. Auteurs
@@ -340,5 +379,5 @@ Projet réalisé dans le cadre d'un PFE sur le recrutement intelligent basé sur
 # 15. Remarque
 
 Ce dépôt est en cours de développement.
-Pour l'instant, il représente surtout la **première brique fonctionnelle** :
-L'extraction robuste du texte des CV PDF.
+Pour l'instant, il représente les **deux premières briques fonctionnelles** :
+L'extraction robuste du texte des CV PDF et la validation automatique du type de document.
