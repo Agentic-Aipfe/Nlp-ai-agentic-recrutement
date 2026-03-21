@@ -120,20 +120,37 @@ NLP_AGENTIC/
 
 ---
 
-# 7. Lancer les tests
+# 7. Tester l'extracteur
 
-Les tests servent à comparer les extracteurs PDF sur différents CV.
-
-Depuis la racine du projet :
+Pour tester, placez votre fichier PDF dans le dossier `resumes/` puis lancez depuis le terminal :
 
 ```bash
-pytest agent_1_cv_parser/tests/
+cd agent_1_cv_parser/tools
+python extractor.py "../resumes/votre_cv.pdf"
 ```
 
-Si `pytest` n'est pas reconnu :
+Résultat attendu pour un CV valide :
 
-```bash
-python -m pytest agent_1_cv_parser/tests/
+```
+Extraction en cours...
+Fichier    : votre_cv.pdf
+Pages      : 2
+Caractères : 3400
+Pages image: []
+OCR requis : False
+============================================================
+Validation en cours...
+Est un CV  : True
+Type doc   : CV
+Raison     : Le document contient des sections typiques d'un CV
+============================================================
+✅ Texte sauvegardé dans : votre_cv_raw.txt
+```
+
+Résultat attendu pour un document rejeté :
+
+```
+❌ Document rejeté — ce n'est pas un CV (Rapport)
 ```
 
 ---
@@ -157,17 +174,7 @@ Son rôle est de :
 
 ---
 
-## Exemple d'utilisation simple
-
-### Exécution directe en terminal
-
-```bash
-python agent_1_cv_parser/tools/extractor.py "chemin/vers/votre_cv.pdf"
-```
-
-Il affichera les informations et **sauvegardera le texte extrait dans un fichier `*_raw.txt`** uniquement si le document est bien un CV.
-
-### Via un script Python
+## Utilisation via un script Python
 
 ```python
 from agent_1_cv_parser.tools.extractor import extract_text, validate_document
@@ -337,19 +344,7 @@ Vérifiez que :
 - l'environnement virtuel est activé
 - les dépendances sont bien installées avec `pip install -r requirements.txt`
 
-## 2. `pytest` non reconnu
-
-Utilisez :
-
-```bash
-python -m pytest agent_1_cv_parser/tests/
-```
-
-## 3. Erreur liée à `.env`
-
-Si vous testez uniquement `pdfplumber` / `PyMuPDF`, ignorez temporairement `LlamaParse`.
-
-## 4. PDF mal extrait
+## 2. PDF mal extrait
 
 Tous les PDF ne sont pas égaux :
 - certains sont de vrais PDF texte
@@ -358,7 +353,7 @@ Tous les PDF ne sont pas égaux :
 
 Pour ce projet, `pdfplumber` est actuellement l'outil le plus fiable parmi ceux testés.
 
-## 5. Ollama ne répond pas
+## 3. Ollama ne répond pas
 
 Vérifiez que le service tourne :
 
@@ -376,6 +371,11 @@ Projet réalisé dans le cadre d'un PFE sur le recrutement intelligent basé sur
 
 ---
 
+# 15. Remarque
+
+Ce dépôt est en cours de développement.
+Pour l'instant, il représente les **deux premières briques fonctionnelles** :
+L'extraction robuste du texte des CV PDF et la validation automatique du type de document.
 # 15. Remarque
 
 Ce dépôt est en cours de développement.
