@@ -144,13 +144,13 @@ Est un CV  : True
 Type doc   : CV
 Raison     : Le document contient des sections typiques d'un CV
 ============================================================
-✅ Texte sauvegardé dans : votre_cv_raw.txt
+ Texte sauvegardé dans : votre_cv_raw.txt
 ```
 
 Résultat attendu pour un document rejeté :
 
 ```
-❌ Document rejeté — ce n'est pas un CV (Rapport)
+ Document rejeté — ce n'est pas un CV (Rapport)
 ```
 
 ---
@@ -351,7 +351,7 @@ Tous les PDF ne sont pas égaux :
 - d'autres sont des scans / images
 - certains ont des colonnes ou des éléments décoratifs
 
-Pour ce projet, `pdfplumber` est actuellement l'outil le plus fiable parmi ceux testés.
+Pour ce projet, `pdfplumber` donnait les meilleurs résultats pour les documents multi-colonnes, c'est pourquoi je l'ai retenu comme extracteur principal
 
 ## 3. Ollama ne répond pas
 
