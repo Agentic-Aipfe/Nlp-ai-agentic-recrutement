@@ -145,10 +145,10 @@ def main():
             raw_output_file = Path(pdf).stem + "_raw.txt"
             with open(raw_output_file, "w", encoding="utf-8") as f:
                 f.write(result["text"])
-            print(f"\n✅ Texte sauvegardé dans : {raw_output_file}")
+            print(f"\n Texte sauvegardé dans : {raw_output_file}")
         else:
             print(
-                f"\n❌ Document rejeté — ce n'est pas un CV ({validation['document_type']})"
+                f"\n Document rejeté — ce n'est pas un CV ({validation['document_type']})"
             )
 
     except Exception as e:
